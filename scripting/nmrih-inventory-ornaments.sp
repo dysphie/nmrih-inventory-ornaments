@@ -1,25 +1,34 @@
-
-#define PREFIX "[-] "
-
 #include <sdktools>
 #include <sdkhooks>
 #include <anymap>
-#include <profiler>
 
 #pragma semicolon 1
 
 #define SOLID_NONE 0
 #define COLLISION_GROUP_NONE 0
+#define BODY_NOMAGLITE 1
+#define SPECMODE_FIRSTPERSON 4
 
 #define ASSERT(%1) if (!%1) ThrowError("#%1")
 
-#define BODY_NOMAGLITE 1
-#define SPECMODE_FIRSTPERSON 			4
-
-ConVar cvDebugTransmit;
+public Plugin myinfo = 
+{
+	name = "[NMRiH] Inventory Ornaments",
+	author = "Dysphie",
+	description = "Displays inventory items on player characters",
+	version = "0.1.0",
+	url = ""
+};
 
 StringMap weaponRenderInfo;
 StringMap weaponPlaceInfo;
+int maxRenderers;
+
+enum struct WeaponRenderInfo
+{
+	int rendererID;
+	int layer;
+}
 
 enum struct WeaponPlaceInfo
 {
@@ -37,7 +46,6 @@ enum struct Renderer
 
 	void Reset()
 	{
-		PrintToServer("Renderer.Reset();");
 		int prop = EntRefToEntIndex(this.propref);
 
 		if (prop != -1)
@@ -48,23 +56,16 @@ enum struct Renderer
 
 	void Init()
 	{
-		PrintToServer("Renderer.Init();");
 		this.propref = INVALID_ENT_REFERENCE;
 		this.activeLayer = -1;
 	}
 
-	void Draw(int client, int weapon, int layer)
+	void Draw(int client, int weapon, int layer, const char[] classname)
 	{
-		char classname[64];
-		GetEntityClassname(weapon, classname, sizeof(classname));
-		PrintToServer("Renderer.Draw(%d. %d) [%s]", weapon, layer, classname);
-
 		int prop = EntRefToEntIndex(this.propref);
 
 		if (prop == -1)
 		{
-			PrintToServer("no prop, creating..");
-
 			char model[PLATFORM_MAX_PATH];
 			GetEntityModel(weapon, model, sizeof(model));
 		
@@ -77,27 +78,20 @@ enum struct Renderer
 			SDKHook(prop, SDKHook_SetTransmit, OnOrnamentTransmit);
 
 			SetEntPropEnt(prop, Prop_Send, "m_hOwnerEntity", client);
-
 			SetVariantString("!activator");
 			AcceptEntityInput(prop, "SetParent", client);
-
 			SetVariantString("HipAttachmentRight");
 			AcceptEntityInput(prop, "SetParentAttachment");
-
 			AcceptEntityInput(prop, "DisableShadows");
 
 			this.propref = EntIndexToEntRef(prop);
 		}
 		
-		// TeleportEntity(prop, .origin = {0.0, 0.0, 0.0}, .angles={0.0, 0.0, 0.0});
 		WeaponPlaceInfo wpi;
 		weaponPlaceInfo.GetArray(classname, wpi, sizeof(wpi));
 		TeleportEntity(prop, .origin = wpi.offset, .angles = wpi.angles);
 
 		SetEntPropFloat(prop, Prop_Send, "m_flModelScale", wpi.scale);
-
-		PrintToServer("offset = %f %f %f, rotation = %f %f %f",
-				wpi.offset[0],wpi.offset[1],wpi.offset[2],wpi.angles[0],wpi.angles[1],wpi.angles[2]);
 
 		int modelIndex = GetModelIndex(weapon);
 		SetModelIndex(prop, modelIndex);
@@ -106,12 +100,22 @@ enum struct Renderer
 	}
 }
 
+public void OnPluginStart()
+{
+	weaponRenderInfo = new StringMap();
+	weaponPlaceInfo = new StringMap();	
+	ParseConfig();
+
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i))
+			OnClientPutInServer(i);
+
+	HookEvent("player_death", OnPlayerDeath);
+	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Pre);
+}
+
 public Action OnOrnamentTransmit(int ornament, int transmitee)
 {
-	// TODO: opti?
-	if (cvDebugTransmit.BoolValue)
-		return Plugin_Continue;
-	
 	// Hide ornament to wearer
 	int ornamentWearer = GetEntPropEnt(ornament, Prop_Data, "m_hOwnerEntity");
 	if (transmitee == ornamentWearer)
@@ -129,14 +133,7 @@ public Action OnOrnamentTransmit(int ornament, int transmitee)
 	return Plugin_Continue;
 }
 
-enum struct WeaponRenderInfo
-{
-	int rendererID;
-	int layer;
-}
-
 ArrayList renderers[MAXPLAYERS+1];
-Profiler prof;
 
 public void OnPluginEnd()
 {
@@ -162,13 +159,13 @@ void ParseConfig()
 		return;
 	}
 
-	int rendererID = 0;
+	char rendererName[64];
+	char itemName[80];
 
+	int rendererID;
 	do
 	{
-		char rendererName[64];
 		kv.GetSectionName(rendererName, sizeof(rendererName));
-		PrintToServer("Parsing %s", rendererName);
 
 		WeaponPlaceInfo baseWpi;
 		kv.GetVector("offset", baseWpi.offset);
@@ -190,8 +187,6 @@ void ParseConfig()
 		do
 		{
 			WeaponPlaceInfo itemWpi;
-
-			char itemName[80];
 			kv.GetSectionName(itemName, sizeof(itemName));
 
 
@@ -205,42 +200,21 @@ void ParseConfig()
 			WeaponRenderInfo itemWri;
 			itemWri.rendererID = rendererID;
 			itemWri.layer = layerID;
-
 			weaponRenderInfo.SetArray(itemName, itemWri, sizeof(itemWri));
-			PrintToServer("Assigning %s to renderer %d", itemName, itemWri.rendererID);
-
 			layerID++;
 
-		} while (kv.GotoNextKey());
+		} 
+		while (kv.GotoNextKey());
 
 		kv.GoBack();
 		kv.GoBack();
-
 		rendererID++;
 
-	} while (kv.GotoNextKey());
+	} 
+	while (kv.GotoNextKey());
 
+	maxRenderers = rendererID;
 	delete kv;
-
-}
-
-public void OnPluginStart()
-{
-	cvDebugTransmit = CreateConVar("ornament_always_transmit", "1");
-
-	// RegConsoleCmd("sm_spec", OnCmdSpec);
-	weaponRenderInfo = new StringMap();
-	weaponPlaceInfo = new StringMap();	
-	ParseConfig();
-
-	prof = new Profiler();
-
-	for (int i = 1; i <= MaxClients; i++)
-		if (IsClientInGame(i))
-			OnClientPutInServer(i);
-
-	HookEvent("player_death", OnPlayerDeath);
-	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Pre);
 }
 
 public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
@@ -262,50 +236,35 @@ public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 public void OnClientPutInServer(int client)
 {
 	InitClientRenderers(client);
-
 	SDKHook(client, SDKHook_WeaponSwitch, OnWeaponSwitch);
 	SDKHook(client, SDKHook_WeaponEquipPost, OnWeaponEquipPost);
 	SDKHook(client, SDKHook_WeaponDrop, OnWeaponDrop);
 }
-
-
-// TODO: Clean up on map end
 
 void ResetClientRenderers(int client)
 {
 	if (!renderers[client])
 		return;
 
-	int numRenderers = renderers[client].Length;
 	Renderer renderer;
-	for (int i; i < numRenderers; i++)
+	for (int i; i < maxRenderers; i++)
 	{
 		renderers[client].GetArray(i, renderer);
 		renderer.Reset();
-	}	
+	}
 }
 
 void InitClientRenderers(int client)
 {
-	ASSERT((renderers[client] == INVALID_HANDLE));
-
 	renderers[client] = new ArrayList(sizeof(Renderer));
 
-	for (int i; i < 3; i++)
+	Renderer r;
+	for (int i; i < maxRenderers; i++)
 	{
-		Renderer r;
 		r.Init();
 		renderers[client].PushArray(r);
 	}
 }
-
-// public void OnEntitySpawned(int entity, const char[] classname)
-// {
-// 	if (IsValidEdict(entity) && IsEntityWeapon(entity))
-// 	{
-// 		// TODO
-// 	}
-// }
 
 public void OnClientDisconnect(int client)
 {
@@ -318,10 +277,6 @@ public Action OnWeaponDrop(int client, int weapon)
 	if (weapon == -1)
 		return Plugin_Continue;
 	
-	char name[64];
-	GetEntityClassname(weapon, name, sizeof(name));
-
-	PrintToServer("Drop %s", name);
 	if (weapon != -1 && weapon != GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon"))
 		OnWeaponUnholstered(client, weapon);
 
@@ -346,8 +301,7 @@ public Action OnWeaponSwitch(int client, int weapon)
 
 	if (curWeapon != -1)
 		OnWeaponHolstered(client, curWeapon);
-
-	// PrintToServer(PREFIX..."OnWeaponSwitch(%s to %s)", curName, name);
+	
 	return Plugin_Continue;
 }
 
@@ -356,27 +310,16 @@ void OnWeaponHolstered(int client, int weapon)
 	char classname[32];
 	GetEntityClassname(weapon, classname, sizeof(classname));
 
-	PrintToServer("OnWeaponHolstered(%N, %d) [%s]", client, weapon, classname);
-
 	WeaponRenderInfo wri = {-1, -1};
 	if (!weaponRenderInfo.GetArray(classname, wri, sizeof(wri)))
-	{
-		PrintToServer("Ignoring %s, no renderer for it", classname);
 		return;
-	}
-
-	PrintToServer("weaponRenderInfo.GetArray(\"%s\", ...) -> {%d, %d}", classname, wri.rendererID, wri.layer);
 
 	Renderer renderer;
-
 	renderers[client].GetArray(wri.rendererID, renderer);
 
-	PrintToServer("wri.layer(%d) <= renderer.activeLayer(%d)", wri.layer, renderer.activeLayer);
 	if (renderer.activeLayer == -1 || wri.layer < renderer.activeLayer)
-	{
-		PrintToServer("Rendering because %s", renderer.activeLayer == -1 ? "nothing rn" :"better than existing");
-	
-		renderer.Draw(client, weapon, wri.layer);
+	{	
+		renderer.Draw(client, weapon, wri.layer, classname);
 		renderers[client].SetArray(wri.rendererID, renderer);
 	}
 }
@@ -386,17 +329,11 @@ void OnWeaponUnholstered(int client, int weapon)
 	char classname[32];
 	GetEntityClassname(weapon, classname, sizeof(classname));
 
-	PrintToServer("OnWeaponUnholstered(%N, %d) [%s]", client, weapon, classname);
-
 	WeaponRenderInfo wri = {-1, -1};
 	if (!weaponRenderInfo.GetArray(classname, wri, sizeof(wri)))
-	{
 		return;
-	}
 
-	PrintToServer("weaponRenderInfo.GetArray(\"%s\", ...) -> {%d, %d}", classname, wri.rendererID, wri.layer);
-
-	Renderer renderer; // ! This returns a new array
+	Renderer renderer;
 	renderers[client].GetArray(wri.rendererID, renderer);
 
 	if (renderer.activeLayer == wri.layer)
@@ -404,22 +341,16 @@ void OnWeaponUnholstered(int client, int weapon)
 		int layer;
 		int newWep = FindWeaponForRenderer(client, wri.rendererID, weapon, layer);
 		if (newWep == -1)
-		{
-			PrintToServer("Out of things to render");
 			renderer.Reset();
-		}
 		else
-			renderer.Draw(client, newWep, layer);
+			renderer.Draw(client, newWep, layer, classname);
 
-		renderers[client].SetArray(wri.rendererID, renderer);	// ! So we must save it
+		renderers[client].SetArray(wri.rendererID, renderer);	
 	}
 }
 
 int FindWeaponForRenderer(int client, int rendererID, int except, int& layer)
 {
-	prof.Start();
-	// PrintToServer("FindWeaponForRenderer(%N, %d, %d, %d)", client, rendererID);
-
 	int activeWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 
 	static int max;
@@ -453,22 +384,10 @@ int FindWeaponForRenderer(int client, int rendererID, int except, int& layer)
 	}
 
 	if (bestWeapon != -1)
-	{
 		layer = lowestLayer;
-		char class2[32];
-		GetEntityClassname(bestWeapon, class2, sizeof(class2));
-		PrintToServer("FindWeaponForRenderer -> %s", class2);
-	}
-	else
-	{
-		PrintToServer("FindWeaponForRenderer -> -1");
-	}
-
-	prof.Stop();
-	PrintToServer("FindWeaponForRenderer %f", prof.Time);
+	
 	return bestWeapon;
 }
-
 
 void GetEntityModel(int entity, char[] buffer, int maxlen)
 {
@@ -487,6 +406,7 @@ void SetModelIndex(int entity, int index)
 
 void SafeRemoveEntity(int entity)
 {
-	ASSERT((entity > MaxClients+1));
+	if (entity <= MaxClients)
+		ThrowError("Entity %d is not removable", entity);
 	RemoveEntity(entity);
 }
