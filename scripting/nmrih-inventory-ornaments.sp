@@ -90,7 +90,6 @@ enum struct Renderer
 		WeaponPlaceInfo wpi;
 		weaponPlaceInfo.GetArray(classname, wpi, sizeof(wpi));
 		TeleportEntity(prop, .origin = wpi.offset, .angles = wpi.angles);
-
 		SetEntPropFloat(prop, Prop_Send, "m_flModelScale", wpi.scale);
 
 		int modelIndex = GetModelIndex(weapon);
@@ -149,9 +148,7 @@ void ParseConfig()
 
 	KeyValues kv = new KeyValues("Ornaments");
 	if (!kv.ImportFromFile(cfg))
-	{
 		SetFailState("Couldn't read from \"%s\"", cfg);
-	}
 
 	if (!kv.GotoFirstSubKey())
 	{
@@ -301,7 +298,7 @@ public Action OnWeaponSwitch(int client, int weapon)
 
 	if (curWeapon != -1)
 		OnWeaponHolstered(client, curWeapon);
-	
+
 	return Plugin_Continue;
 }
 
@@ -341,9 +338,14 @@ void OnWeaponUnholstered(int client, int weapon)
 		int layer;
 		int newWep = FindWeaponForRenderer(client, wri.rendererID, weapon, layer);
 		if (newWep == -1)
+		{
 			renderer.Reset();
+		}
 		else
+		{
+			GetEntityClassname(newWep, classname, sizeof(classname));
 			renderer.Draw(client, newWep, layer, classname);
+		}
 
 		renderers[client].SetArray(wri.rendererID, renderer);	
 	}
