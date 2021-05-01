@@ -14,17 +14,7 @@
 #define ASSERT(%1) if (!%1) ThrowError("#%1")
 
 #define BODY_NOMAGLITE 1
-
-
-#define SPECMODE_NONE 						0
 #define SPECMODE_FIRSTPERSON 			4
-#define SPECMODE_3RDPERSON 			5
-#define SPECMODE_FREELOOK	 			6
-#define SPECMODE_CSS_FIRSTPERSON 	3
-#define SPECMODE_CSS_3RDPERSON 	4
-#define SPECMODE_CSS_FREELOOK	 	5
-
-
 
 ConVar cvDebugTransmit;
 
@@ -45,9 +35,9 @@ enum struct Renderer
 	int propref;
 	int activeLayer;
 
-	void Delete()
+	void Reset()
 	{
-		PrintToServer("Renderer.Delete();");
+		PrintToServer("Renderer.Reset();");
 		int prop = EntRefToEntIndex(this.propref);
 
 		if (prop != -1)
@@ -76,7 +66,7 @@ enum struct Renderer
 			PrintToServer("no prop, creating..");
 
 			char model[PLATFORM_MAX_PATH];
-			GetEntPropString(weapon, Prop_Data, "m_ModelName", model, sizeof(model));
+			GetEntityModel(weapon, model, sizeof(model));
 		
 			prop = CreateEntityByName("prop_dynamic_override");
 			DispatchKeyValue(prop, "model", model);
@@ -112,19 +102,9 @@ enum struct Renderer
 		int modelIndex = GetModelIndex(weapon);
 		SetModelIndex(prop, modelIndex);
 		SetEntProp(prop, Prop_Send, "m_nBody", BODY_NOMAGLITE);
-		// SetEntityModel(prop, "models/props_junk/watermelon01.mdl" );
-
 		this.activeLayer = layer;
 	}
 }
-
-// public Action OnCmdSpec(int client, int args)
-// {
-// 	int obsMode = GetEntProp(client, Prop_Send, "m_iObserverMode");
-// 	int target = GetEntPropEnt(client, Prop_Send, "m_hObserverTarget");
-// 	bool isspecing = IsSpectatingFirstPerson(client, 2);
-// 	ReplyToCommand(client, "Specing %d with mode %d | %d", target, obsMode, isspecing);
-// }
 
 public Action OnOrnamentTransmit(int ornament, int transmitee)
 {
@@ -162,7 +142,7 @@ public void OnPluginEnd()
 {
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i))
-			DeleteClientRenderers(i);
+			ResetClientRenderers(i);
 }
 
 void ParseConfig()
@@ -260,13 +240,23 @@ public void OnPluginStart()
 			OnClientPutInServer(i);
 
 	HookEvent("player_death", OnPlayerDeath);
+	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Pre);
 }
 
 public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if (client)
-		DeleteClientRenderers(client);
+		ResetClientRenderers(client);
+}
+
+public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if (client)
+		ResetClientRenderers(client);
+
+	return Plugin_Continue;
 }
 
 public void OnClientPutInServer(int client)
@@ -281,7 +271,7 @@ public void OnClientPutInServer(int client)
 
 // TODO: Clean up on map end
 
-void DeleteClientRenderers(int client)
+void ResetClientRenderers(int client)
 {
 	if (!renderers[client])
 		return;
@@ -291,10 +281,8 @@ void DeleteClientRenderers(int client)
 	for (int i; i < numRenderers; i++)
 	{
 		renderers[client].GetArray(i, renderer);
-		renderer.Delete();
-	}
-
-	delete renderers[client];	
+		renderer.Reset();
+	}	
 }
 
 void InitClientRenderers(int client)
@@ -321,7 +309,8 @@ void InitClientRenderers(int client)
 
 public void OnClientDisconnect(int client)
 {
-	DeleteClientRenderers(client);
+	ResetClientRenderers(client);
+	delete renderers[client];
 }
 
 public Action OnWeaponDrop(int client, int weapon)
@@ -417,7 +406,7 @@ void OnWeaponUnholstered(int client, int weapon)
 		if (newWep == -1)
 		{
 			PrintToServer("Out of things to render");
-			renderer.Delete();
+			renderer.Reset();
 		}
 		else
 			renderer.Draw(client, newWep, layer);
@@ -494,11 +483,6 @@ int GetModelIndex(int entity)
 void SetModelIndex(int entity, int index)
 {
 	SetEntProp(entity, Prop_Send, "m_nModelIndex", index);
-}
-
-bool IsEntityWeapon(int entity)
-{
-	return HasEntProp(entity, Prop_Send, "_bloodCount");
 }
 
 void SafeRemoveEntity(int entity)
