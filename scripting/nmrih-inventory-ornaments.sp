@@ -75,12 +75,10 @@ enum struct Renderer
 		{
 			PrintToServer("no prop, creating..");
 
-			//char model[PLATFORM_MAX_PATH];
-			// GetEntPropString(weapon, Prop_Data, "m_ModelName", model, sizeof(model));
-			char model[] = "models/props_junk/watermelon01.mdl";
-
+			char model[PLATFORM_MAX_PATH];
+			GetEntPropString(weapon, Prop_Data, "m_ModelName", model, sizeof(model));
+		
 			prop = CreateEntityByName("prop_dynamic_override");
-
 			DispatchKeyValue(prop, "model", model);
 			DispatchKeyValue(prop, "spawnflags", "256");
 			DispatchKeyValue(prop, "solid", "0");
@@ -287,7 +285,7 @@ void DeleteClientRenderers(int client)
 {
 	if (!renderers[client])
 		return;
-	
+
 	int numRenderers = renderers[client].Length;
 	Renderer renderer;
 	for (int i; i < numRenderers; i++)
