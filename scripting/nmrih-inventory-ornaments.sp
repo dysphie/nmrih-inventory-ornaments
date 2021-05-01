@@ -26,6 +26,8 @@
 
 
 
+ConVar cvDebugTransmit;
+
 StringMap weaponRenderInfo;
 StringMap weaponPlaceInfo;
 
@@ -117,18 +119,19 @@ enum struct Renderer
 	}
 }
 
-public Action OnCmdSpec(int client, int args)
-{
-	int obsMode = GetEntProp(client, Prop_Send, "m_iObserverMode");
-	int target = GetEntPropEnt(client, Prop_Send, "m_hObserverTarget");
-	bool isspecing = IsSpectatingFirstPerson(client, 2);
-	ReplyToCommand(client, "Specing %d with mode %d | %d", target, obsMode, isspecing);
-}
+// public Action OnCmdSpec(int client, int args)
+// {
+// 	int obsMode = GetEntProp(client, Prop_Send, "m_iObserverMode");
+// 	int target = GetEntPropEnt(client, Prop_Send, "m_hObserverTarget");
+// 	bool isspecing = IsSpectatingFirstPerson(client, 2);
+// 	ReplyToCommand(client, "Specing %d with mode %d | %d", target, obsMode, isspecing);
+// }
 
 public Action OnOrnamentTransmit(int ornament, int transmitee)
 {
 	// TODO: opti?
-
+	if (cvDebugTransmit.BoolValue)
+		return Plugin_Continue;
 	
 	// Hide ornament to wearer
 	int ornamentWearer = GetEntPropEnt(ornament, Prop_Data, "m_hOwnerEntity");
@@ -244,7 +247,9 @@ void ParseConfig()
 
 public void OnPluginStart()
 {
-	RegConsoleCmd("sm_spec", OnCmdSpec);
+	cvDebugTransmit = CreateConVar("ornament_always_transmit", "1");
+
+	// RegConsoleCmd("sm_spec", OnCmdSpec);
 	weaponRenderInfo = new StringMap();
 	weaponPlaceInfo = new StringMap();	
 	ParseConfig();
@@ -254,6 +259,15 @@ public void OnPluginStart()
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i))
 			OnClientPutInServer(i);
+
+	HookEvent("player_death", OnPlayerDeath);
+}
+
+public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if (client)
+		DeleteClientRenderers(client);
 }
 
 public void OnClientPutInServer(int client)
@@ -310,7 +324,9 @@ public void OnClientDisconnect(int client)
 
 public Action OnWeaponDrop(int client, int weapon)
 {
-	PrintToServer("HUHHHHHHHHHH");
+	if (weapon == -1)
+		return Plugin_Continue;
+	
 	char name[64];
 	GetEntityClassname(weapon, name, sizeof(name));
 
