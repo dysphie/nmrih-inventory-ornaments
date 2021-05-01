@@ -75,8 +75,9 @@ enum struct Renderer
 		{
 			PrintToServer("no prop, creating..");
 
-			char model[PLATFORM_MAX_PATH];
-			GetEntPropString(weapon, Prop_Data, "m_ModelName", model, sizeof(model));
+			//char model[PLATFORM_MAX_PATH];
+			// GetEntPropString(weapon, Prop_Data, "m_ModelName", model, sizeof(model));
+			char model[] = "models/props_junk/watermelon01.mdl";
 
 			prop = CreateEntityByName("prop_dynamic_override");
 
@@ -284,6 +285,9 @@ public void OnClientPutInServer(int client)
 
 void DeleteClientRenderers(int client)
 {
+	if (!renderers[client])
+		return;
+	
 	int numRenderers = renderers[client].Length;
 	Renderer renderer;
 	for (int i; i < numRenderers; i++)
