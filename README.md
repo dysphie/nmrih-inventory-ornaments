@@ -14,7 +14,7 @@ By default there are 3 renderers, each displaying a different set of items, with
 **Back**: Welder, Extinguisher, Abrasive Saw, Chainsaw, Pickaxe, Sledge, Fubar, Machete, Hatchet, Shovel, Fire Axe, E-Tool, Lead Pipe, Crowbar, Baseball Bat 
 
 The different renderers, item positions and priorities can be tweaked in `configs/inventory-ornaments.cfg` (Ideally, this will be editable through a menu in the future).
-Structure is as follows
+Structure is as follows:
 ```cpp
 "Ornaments"
 {
