@@ -3,8 +3,6 @@
 
 ![nmrih_xr3KdG57OL](https://user-images.githubusercontent.com/11559683/116795572-632e2f00-aaac-11eb-94cb-7d799fc72e7e.png)
 
-### Note: The current version of the source code is experimental (use at your own risk!)
-
 By default there are 3 renderers, each displaying a different set of items, with item render priority decreasing from left to right.
 
 **Right hip:** First Aid Kit, Bandages
