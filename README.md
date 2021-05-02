@@ -46,10 +46,7 @@ Structure is as follows:
 				"scale"       "1.0"               
 			}
 
-			"item_bandages"
-			{
-				// Same thing
-			}
+			"item_bandages" {}	// Body can be left empty
 		}
 	}
 }
