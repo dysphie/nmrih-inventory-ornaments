@@ -16,7 +16,7 @@ public Plugin myinfo =
 	name = "[NMRiH] Inventory Ornaments",
 	author = "Dysphie",
 	description = "Displays inventory items on player characters",
-	version = "0.1.1",
+	version = "0.1.2",
 	url = ""
 };
 
@@ -217,9 +217,7 @@ void ParseConfig()
 
 public void OnPlayerExtracted(Event event, const char[] name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(event.GetInt("player_id"));
-	if (client)
-		ResetClientRenderers(client);
+	ResetClientRenderers(event.GetInt("player_id"));
 }
 
 public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
