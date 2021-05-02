@@ -16,7 +16,7 @@ public Plugin myinfo =
 	name = "[NMRiH] Inventory Ornaments",
 	author = "Dysphie",
 	description = "Displays inventory items on player characters",
-	version = "0.1.0",
+	version = "0.1.1",
 	url = ""
 };
 
@@ -110,6 +110,7 @@ public void OnPluginStart()
 			OnClientPutInServer(i);
 
 	HookEvent("player_death", OnPlayerDeath);
+	HookEvent("player_extracted", OnPlayerExtracted);
 	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_Pre);
 }
 
@@ -212,6 +213,13 @@ void ParseConfig()
 
 	maxRenderers = rendererID;
 	delete kv;
+}
+
+public void OnPlayerExtracted(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("player_id"));
+	if (client)
+		ResetClientRenderers(client);
 }
 
 public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
