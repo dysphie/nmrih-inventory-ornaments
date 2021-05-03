@@ -1,6 +1,5 @@
 #include <sdktools>
 #include <sdkhooks>
-#include <anymap>
 
 #pragma semicolon 1
 
