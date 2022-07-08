@@ -3,6 +3,13 @@
 
 ![nmrih_xr3KdG57OL](https://user-images.githubusercontent.com/11559683/116795572-632e2f00-aaac-11eb-94cb-7d799fc72e7e.png)
 
+## Installation
+- [Install Sourcemod](https://wiki.alliedmods.net/Installing_sourcemod) (1.11.0.6506 or higher is recommended for full functionality)
+- Grab the latest zip from the [releases](https://github.com/dysphie/nmrih-inventory-ornaments/releases) section.
+- Extract the contents into `addons/sourcemod`
+- Refresh the plugin list (`sm plugins refresh` or `sm plugins reload nmrih-inventory-ornaments` in server console)
+
+## Rendering
 By default there are 3 renderers, each displaying a different set of items, with item render priority decreasing from left to right.
 
 **Right hip:** First Aid Kit, Bandages
@@ -51,3 +58,5 @@ Structure is as follows:
 	}
 }
 ```
+
+**Note that due to the way these items are rendered, they can take quite a toll on server performance (SetTransmit is pretty expensive). You should try to keep the number of renderers on a player at less than 5 at all times**
