@@ -1,14 +1,16 @@
+#pragma semicolon 1
+#pragma newdecls required
+
+#include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 
+#include "nmrih-inventory-ornaments/objective-items.sp"
+
 #pragma semicolon 1
 
-#define SOLID_NONE 0
-#define COLLISION_GROUP_NONE 0
 #define BODY_NOMAGLITE 1
 #define SPECMODE_FIRSTPERSON 4
-
-#define ASSERT(%1) if (!%1) ThrowError("#%1")
 
 public Plugin myinfo = 
 {
@@ -40,12 +42,13 @@ enum struct WeaponPlaceInfo
 enum struct Renderer
 {
 	bool overridden;
-	int propref;
+	int propRef; // Reference to our ornament prop
 	int activeLayer;
+	int weaponRef; // Reference to the weapon we are rendering
 
 	void Reset()
 	{
-		int prop = EntRefToEntIndex(this.propref);
+		int prop = EntRefToEntIndex(this.propRef);
 
 		if (prop != -1)
 			SafeRemoveEntity(prop);
@@ -55,13 +58,36 @@ enum struct Renderer
 
 	void Init()
 	{
-		this.propref = INVALID_ENT_REFERENCE;
+		this.propRef = INVALID_ENT_REFERENCE;
+		this.weaponRef = INVALID_ENT_REFERENCE;
 		this.activeLayer = -1;
+	}
+
+	void Update()
+	{
+		int prop = EntRefToEntIndex(this.propRef);
+		if (prop == -1)
+		{
+			PrintToServer("Got invalid propRef");
+			return;
+		}
+
+		int weapon = EntRefToEntIndex(this.weaponRef);
+		int color;
+		if (weapon == -1 || !GetEntityObjectiveColor(weapon, color))
+		{
+			SetVariantString("!activator");
+			AcceptEntityInput(prop, "DisableGlow", prop, prop);
+		}
+		else
+		{
+			GlowEntity(prop, color);
+		}
 	}
 
 	void Draw(int client, int weapon, int layer, const char[] classname)
 	{
-		int prop = EntRefToEntIndex(this.propref);
+		int prop = EntRefToEntIndex(this.propRef);
 
 		if (prop == -1)
 		{
@@ -74,7 +100,10 @@ enum struct Renderer
 			DispatchKeyValue(prop, "solid", "0");
 			DispatchSpawn(prop);
 
-			SDKHook(prop, SDKHook_SetTransmit, OnOrnamentTransmit);
+			SetEntPropString(prop, Prop_Data, "m_iClassname", "inventory_ornament");
+
+			// FIXME: Add this back!
+			// SDKHook(prop, SDKHook_SetTransmit, OnOrnamentTransmit);
 
 			SetEntPropEnt(prop, Prop_Send, "m_hOwnerEntity", client);
 			SetVariantString("!activator");
@@ -83,7 +112,7 @@ enum struct Renderer
 			AcceptEntityInput(prop, "SetParentAttachment");
 			AcceptEntityInput(prop, "DisableShadows");
 
-			this.propref = EntIndexToEntRef(prop);
+			this.propRef = EntIndexToEntRef(prop);
 		}
 		
 		WeaponPlaceInfo wpi;
@@ -95,7 +124,26 @@ enum struct Renderer
 		SetModelIndex(prop, modelIndex);
 		SetEntProp(prop, Prop_Send, "m_nBody", BODY_NOMAGLITE);
 		this.activeLayer = layer;
+
+		int color;
+		if (GetEntityObjectiveColor(weapon, color))
+		{
+			GlowEntity(prop, color);
+		}
+
+		this.weaponRef = EntIndexToEntRef(weapon); 
 	}
+}
+
+void GlowEntity(int entity, int color)
+{
+	DispatchKeyValue(entity, "glowable", "1"); 
+	DispatchKeyValue(entity, "glowblip", "0");
+	SetEntProp(entity, Prop_Data, "m_clrGlowColor", color);
+	DispatchKeyValue(entity, "glowdistance", "90");
+
+	SetVariantString("!activator");
+	AcceptEntityInput(entity, "enableglow", entity, entity);
 }
 
 public void OnPluginStart()
@@ -103,6 +151,8 @@ public void OnPluginStart()
 	weaponRenderInfo = new StringMap();
 	weaponPlaceInfo = new StringMap();	
 	ParseConfig();
+
+	ObjectiveItems_OnPluginStart();
 
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i))
@@ -253,6 +303,28 @@ void ResetClientRenderers(int client)
 	{
 		renderers[client].GetArray(i, renderer);
 		renderer.Reset();
+		renderers[client].SetArray(i, renderer); // ?? This wasn't here before, how did it even work before, did it not?
+	}
+}
+
+void ForceUpdateRenderers()
+{
+	for (int client = 1; client <= MaxClients; client++)
+	{
+		if (IsClientInGame(client))
+		{
+			if (!renderers[client])
+				continue;
+
+			Renderer renderer;
+			for (int i; i < maxRenderers; i++)
+			{
+				renderers[client].GetArray(i, renderer);
+				renderer.Update();
+				PrintToServer("Forcing update on %N's renderer", client);
+				renderers[client].GetArray(i, renderer);
+			}
+		}
 	}
 }
 
@@ -274,26 +346,23 @@ public void OnClientDisconnect(int client)
 	delete renderers[client];
 }
 
-public Action OnWeaponDrop(int client, int weapon)
+Action OnWeaponDrop(int client, int weapon)
 {
-	if (weapon == -1)
-		return Plugin_Continue;
-	
 	if (weapon != -1 && weapon != GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon"))
 		OnWeaponUnholstered(client, weapon);
 
 	return Plugin_Continue;
 }
 
-public void OnWeaponEquipPost(int client, int weapon)
+void OnWeaponEquipPost(int client, int weapon)
 {
-	if (weapon != -1 && weapon != GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon"))
+	if (weapon != -1 && weapon != GetActiveWeapon(client))
 		OnWeaponHolstered(client, weapon);
 }
 
-public Action OnWeaponSwitch(int client, int weapon)
+Action OnWeaponSwitch(int client, int weapon)
 {
-	int curWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	int curWeapon = GetActiveWeapon(client);
 
 	if (curWeapon == weapon)
 		return Plugin_Continue;
@@ -358,7 +427,7 @@ void OnWeaponUnholstered(int client, int weapon)
 
 int FindWeaponForRenderer(int client, int rendererID, int except, int& layer)
 {
-	int activeWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	int activeWeapon = GetActiveWeapon(client);
 
 	static int max;
 	max = GetEntPropArraySize(client, Prop_Send, "m_hMyWeapons");
@@ -413,7 +482,14 @@ void SetModelIndex(int entity, int index)
 
 void SafeRemoveEntity(int entity)
 {
-	if (entity <= MaxClients)
-		ThrowError("Entity %d is not removable", entity);
+	if (entity >= 0 && entity <= MaxClients)
+	{
+		ThrowError("Attempted to delete player or world entity %d. Tell a developer", entity);
+	}
 	RemoveEntity(entity);
+}
+
+int GetActiveWeapon(int client)
+{
+	return GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 }
