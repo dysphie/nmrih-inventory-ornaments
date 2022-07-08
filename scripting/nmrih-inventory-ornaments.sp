@@ -71,7 +71,6 @@ enum struct Renderer
 		int prop = EntRefToEntIndex(this.propRef);
 		if (prop == -1)
 		{
-			PrintToServer("Got invalid propRef");
 			return;
 		}
 
@@ -105,8 +104,7 @@ enum struct Renderer
 
 			SetEntPropString(prop, Prop_Data, "m_iClassname", "inventory_ornament");
 
-			// FIXME: Add this back!
-			// SDKHook(prop, SDKHook_SetTransmit, OnOrnamentTransmit);
+			SDKHook(prop, SDKHook_SetTransmit, OnOrnamentTransmit);
 
 			SetEntPropEnt(prop, Prop_Send, "m_hOwnerEntity", client);
 			SetVariantString("!activator");
@@ -327,7 +325,6 @@ void ForceUpdateRenderers()
 			{
 				renderers[client].GetArray(i, renderer);
 				renderer.Update();
-				PrintToServer("Forcing update on %N's renderer", client);
 				renderers[client].GetArray(i, renderer);
 			}
 		}
