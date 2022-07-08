@@ -44,7 +44,6 @@ void OnBoundaryActivated(const char[] output, int boundary, int activator, float
 		if (strlen(names[i]) > 0)
 		{
 			objectiveItems.SetValue(names[i], colors[i]);
-			PrintToServer("objectiveItems.SetValue %s %x", names[i], colors[i]);
 		}
 	}
 
