@@ -12,13 +12,16 @@
 #define BODY_NOMAGLITE 1
 #define SPECMODE_FIRSTPERSON 4
 
+#define PLUGIN_VERSION "0.1.3"
+#define PLUGIN_DESCRIPTION "Displays inventory items on player characters"
+
 public Plugin myinfo = 
 {
 	name = "[NMRiH] Inventory Ornaments",
 	author = "Dysphie",
-	description = "Displays inventory items on player characters",
-	version = "0.1.2",
-	url = ""
+	description = PLUGIN_DESCRIPTION,
+	version = PLUGIN_VERSION,
+	url = "https://github.com/dysphie/nmrih-inventory-ornaments"
 };
 
 StringMap weaponRenderInfo;
@@ -148,6 +151,9 @@ void GlowEntity(int entity, int color)
 
 public void OnPluginStart()
 {
+	CreateConVar("nmr_inventory_ornaments_version", PLUGIN_VERSION, PLUGIN_DESCRIPTION,
+    	FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+
 	weaponRenderInfo = new StringMap();
 	weaponPlaceInfo = new StringMap();	
 	ParseConfig();
