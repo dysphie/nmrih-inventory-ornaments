@@ -12,7 +12,7 @@
 #define BODY_NOMAGLITE 1
 #define SPECMODE_FIRSTPERSON 4
 
-#define PLUGIN_VERSION "0.1.3"
+#define PLUGIN_VERSION "0.1.4"
 #define PLUGIN_DESCRIPTION "Displays inventory items on player characters"
 
 public Plugin myinfo = 
@@ -102,7 +102,8 @@ enum struct Renderer
 			DispatchKeyValue(prop, "solid", "0");
 			DispatchSpawn(prop);
 
-			SetEntPropString(prop, Prop_Data, "m_iClassname", "inventory_ornament");
+			// UNDONE: This appears to cause crashes when CDynamicProp::~CDynamicProp() is invoked
+			// SetEntPropString(prop, Prop_Data, "m_iClassname", "inventory_ornament");
 
 			SDKHook(prop, SDKHook_SetTransmit, OnOrnamentTransmit);
 
