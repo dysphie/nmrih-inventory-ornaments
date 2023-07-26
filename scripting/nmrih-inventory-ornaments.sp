@@ -9,6 +9,7 @@
 
 #pragma semicolon 1
 
+#define NMR_MAXPLAYERS 9
 #define BODY_NOMAGLITE 1
 #define SPECMODE_FIRSTPERSON 4
 
@@ -187,7 +188,7 @@ public Action OnOrnamentTransmit(int ornament, int transmitee)
 	return Plugin_Continue;
 }
 
-ArrayList renderers[MAXPLAYERS+1];
+ArrayList renderers[NMR_MAXPLAYERS+1];
 
 public void OnPluginEnd()
 {
