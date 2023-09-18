@@ -13,7 +13,7 @@
 #define BODY_NOMAGLITE 1
 #define SPECMODE_FIRSTPERSON 4
 
-#define PLUGIN_VERSION "0.1.4"
+#define PLUGIN_VERSION "0.1.5"
 #define PLUGIN_DESCRIPTION "Displays inventory items on player characters"
 
 public Plugin myinfo = 
@@ -123,8 +123,10 @@ enum struct Renderer
 		TeleportEntity(prop, .origin = wpi.offset, .angles = wpi.angles);
 		SetEntPropFloat(prop, Prop_Send, "m_flModelScale", wpi.scale);
 
-		int modelIndex = GetModelIndex(weapon);
-		SetModelIndex(prop, modelIndex);
+		char model[PLATFORM_MAX_PATH];
+		GetEntityModel(weapon, model, sizeof(model));
+		SetEntityModel(prop, model);
+
 		SetEntProp(prop, Prop_Send, "m_nBody", BODY_NOMAGLITE);
 		this.activeLayer = layer;
 
@@ -473,16 +475,6 @@ int FindWeaponForRenderer(int client, int rendererID, int except, int& layer)
 void GetEntityModel(int entity, char[] buffer, int maxlen)
 {
 	GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, maxlen);
-}
-
-int GetModelIndex(int entity)
-{
-	return GetEntProp(entity, Prop_Send, "m_iWorldModelIndex");
-}
-
-void SetModelIndex(int entity, int index)
-{
-	SetEntProp(entity, Prop_Send, "m_nModelIndex", index);
 }
 
 void SafeRemoveEntity(int entity)
