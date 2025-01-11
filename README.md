@@ -1,3 +1,6 @@
+> [!WARNING]
+> This plugin is unmaintained since Torn Banner's acquisition of the game.
+
 # Inventory Ornaments
 [Sourcemod](https://www.sourcemod.net) plugin for [No More Room in Hell](https://store.steampowered.com/app/224260) that adds the ability to display holstered items on survivor models. 
 
